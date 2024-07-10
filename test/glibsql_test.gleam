@@ -18,7 +18,7 @@ pub fn builder_custom_host_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-  |> http_request.set_header("User-Agent", "glibsql/0.1.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.1.0")
     |> http_request.set_body("{\"requests\":[]}")
 
   glibsql.new_http_request()
@@ -41,7 +41,7 @@ pub fn builder_no_statements_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-  |> http_request.set_header("User-Agent", "glibsql/0.1.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.1.0")
     |> http_request.set_body("{\"requests\":[]}")
 
   glibsql.new_http_request()
@@ -62,7 +62,7 @@ pub fn builder_single_statement_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-  |> http_request.set_header("User-Agent", "glibsql/0.1.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.1.0")
     |> http_request.set_body(
       "{\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users\"}},{\"type\":\"close\"}]}",
     )
@@ -87,7 +87,7 @@ pub fn builder_many_statement_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-  |> http_request.set_header("User-Agent", "glibsql/0.1.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.1.0")
     |> http_request.set_body(
       "{\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users\"}},{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM posts\"}},{\"type\":\"close\"}]}",
     )
@@ -99,6 +99,31 @@ pub fn builder_many_statement_test() {
   |> glibsql.with_statement(glibsql.ExecuteStatement(sql: "SELECT * FROM users"))
   |> glibsql.with_statement(glibsql.ExecuteStatement(sql: "SELECT * FROM posts"))
   |> glibsql.with_statement(glibsql.CloseStatement)
+  |> glibsql.build
+  |> should.equal(expected)
+}
+
+pub fn builder_clear_statements_test() {
+  let expected =
+    http_request.new()
+    |> http_request.set_method(http.Post)
+    |> http_request.set_scheme(http.Https)
+    |> http_request.set_host("database-organization.turso.io")
+    |> http_request.set_path("/v2/pipeline")
+    |> http_request.set_header("Authorization", "Bearer token")
+    |> http_request.set_header("Content-Type", "application/json")
+    |> http_request.set_header("Accept", "application/json")
+    |> http_request.set_header("User-Agent", "glibsql/0.1.0")
+    |> http_request.set_body("{\"requests\":[]}")
+
+  glibsql.new_http_request()
+  |> glibsql.with_database("database")
+  |> glibsql.with_organization("organization")
+  |> glibsql.with_token("token")
+  |> glibsql.with_statement(glibsql.ExecuteStatement(sql: "SELECT * FROM users"))
+  |> glibsql.with_statement(glibsql.ExecuteStatement(sql: "SELECT * FROM posts"))
+  |> glibsql.with_statement(glibsql.CloseStatement)
+  |> glibsql.clear_statements
   |> glibsql.build
   |> should.equal(expected)
 }
