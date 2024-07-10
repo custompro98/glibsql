@@ -73,6 +73,8 @@ pub fn build(request: LibsqlRequest) {
     "Authorization",
     string.join(["Bearer", request.token], " "),
   )
+  |> http_request.set_header("Content-Type", "application/json")
+  |> http_request.set_header("Accept", "application/json")
   |> http_request.set_body(build_json(request))
 }
 
