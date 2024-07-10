@@ -16,11 +16,11 @@ pub fn builder_custom_host_test() {
     |> http_request.set_host("database-organization.example.com")
     |> http_request.set_path("/v1/acme")
     |> http_request.set_header("Authorization", "Bearer token")
-  |> http_request.set_header("Content-Type", "application/json")
-  |> http_request.set_header("Accept", "application/json")
+    |> http_request.set_header("Content-Type", "application/json")
+    |> http_request.set_header("Accept", "application/json")
     |> http_request.set_body("{\"requests\":[]}")
 
-  glibsql.new_request()
+  glibsql.new_http_request()
   |> glibsql.with_database("database")
   |> glibsql.with_organization("organization")
   |> glibsql.with_host("example.com")
@@ -38,11 +38,11 @@ pub fn builder_no_statements_test() {
     |> http_request.set_host("database-organization.turso.io")
     |> http_request.set_path("/v2/pipeline")
     |> http_request.set_header("Authorization", "Bearer token")
-  |> http_request.set_header("Content-Type", "application/json")
-  |> http_request.set_header("Accept", "application/json")
+    |> http_request.set_header("Content-Type", "application/json")
+    |> http_request.set_header("Accept", "application/json")
     |> http_request.set_body("{\"requests\":[]}")
 
-  glibsql.new_request()
+  glibsql.new_http_request()
   |> glibsql.with_database("database")
   |> glibsql.with_organization("organization")
   |> glibsql.with_token("token")
@@ -58,13 +58,13 @@ pub fn builder_single_statement_test() {
     |> http_request.set_host("database-organization.turso.io")
     |> http_request.set_path("/v2/pipeline")
     |> http_request.set_header("Authorization", "Bearer token")
-  |> http_request.set_header("Content-Type", "application/json")
-  |> http_request.set_header("Accept", "application/json")
+    |> http_request.set_header("Content-Type", "application/json")
+    |> http_request.set_header("Accept", "application/json")
     |> http_request.set_body(
       "{\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users\"}},{\"type\":\"close\"}]}",
     )
 
-  glibsql.new_request()
+  glibsql.new_http_request()
   |> glibsql.with_database("database")
   |> glibsql.with_organization("organization")
   |> glibsql.with_token("token")
@@ -82,13 +82,13 @@ pub fn builder_many_statement_test() {
     |> http_request.set_host("database-organization.turso.io")
     |> http_request.set_path("/v2/pipeline")
     |> http_request.set_header("Authorization", "Bearer token")
-  |> http_request.set_header("Content-Type", "application/json")
-  |> http_request.set_header("Accept", "application/json")
+    |> http_request.set_header("Content-Type", "application/json")
+    |> http_request.set_header("Accept", "application/json")
     |> http_request.set_body(
       "{\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users\"}},{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM posts\"}},{\"type\":\"close\"}]}",
     )
 
-  glibsql.new_request()
+  glibsql.new_http_request()
   |> glibsql.with_database("database")
   |> glibsql.with_organization("organization")
   |> glibsql.with_token("token")

@@ -9,7 +9,7 @@ pub type Statement {
   CloseStatement
 }
 
-pub type LibsqlRequest {
+pub opaque type LibsqlRequest {
   LibsqlRequest(
     database: String,
     organization: String,
@@ -20,7 +20,7 @@ pub type LibsqlRequest {
   )
 }
 
-pub fn new_request() -> LibsqlRequest {
+pub fn new_http_request() -> LibsqlRequest {
   LibsqlRequest(
     database: "",
     organization: "",
