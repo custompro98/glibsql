@@ -4,10 +4,13 @@ version = "0.1.0"
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
 #
-# description = ""
-# licences = ["Apache-2.0"]
-# repository = { type = "github", user = "username", repo = "project" }
-# links = [{ title = "Website", href = "https://gleam.run" }]
+description = "Glibsql is a library for interacting with a hosted libSQL database such as [Turso](https://turso.tech)."
+licences = ["Apache-2.0"]
+repository = { type = "github", user = "custompro98", repo = "glibsql" }
+links = [
+    { title = "Turso", href = "https://turso.tech" },
+    { title = "Hrana over HTTP", href = "https://docs.turso.tech/sdk/http/reference"}
+]
 #
 # For a full reference of all the available options, you can have a look at
 # https://gleam.run/writing-gleam/gleam-toml/.

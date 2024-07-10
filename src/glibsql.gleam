@@ -1,4 +1,4 @@
-//// Glibsql is a library for interacting with a hosted libSQL database such as [Turso](https://turso.io).
+//// Glibsql is a library for interacting with a hosted libSQL database such as [Turso](https://turso.tech).
 //// 
 //// Glibsql helps construct a `gleam/http/request` for use with the [Hrana over HTTP](https://docs.turso.tech/sdk/http/reference) variant of libSQL,
 //// simply pass the constructed HTTP request into your http client of choice.
