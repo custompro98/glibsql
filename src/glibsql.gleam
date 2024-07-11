@@ -134,7 +134,7 @@ pub fn build(request: HttpRequest) -> http_request.Request(String) {
   )
   |> http_request.set_header("Content-Type", "application/json")
   |> http_request.set_header("Accept", "application/json")
-  |> http_request.set_header("User-Agent", "glibsql/0.1.0")
+  |> http_request.set_header("User-Agent", "glibsql/0.2.0")
   |> http_request.set_body(build_json(request))
 }
 
