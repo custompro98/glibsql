@@ -12,26 +12,52 @@ simply pass the constructed HTTP request into your http client of choice.
 gleam add glibsql
 ```
 ```gleam
-import glibsql
 import gleam/httpc
 import gleam/result
+import glibsql
 
 pub fn main() {
-  let request = 
-    glibsql.new_http_request()
-    |> glibsql.with_database("database")
-    |> glibsql.with_organization("organization")
-    |> glibsql.with_token("token")
+  // The first request does not have to include a `CloseStatement`,
+  // a baton is returned from the first request to be used in subsequent requests.
+  let request =
+    base_request()
+    |> glibsql.with_statement(glibsql.ExecuteStatement(
+      sql: "BEGIN",
+    ))
     |> glibsql.with_statement(glibsql.ExecuteStatement(
       sql: "SELECT * FROM users",
     ))
-    |> glibsql.with_statement(glibsql.CloseStatement)
     |> glibsql.build
 
   use response <- result.try(httpc.send(request))
 
   // ...
+
+  // The second request uses the baton from the first request to reuse the connection.
+  // This is useful if you are making multiple requests to the same database, especially
+  // within a transaction.
+  let second_request =
+    base_request()
+    |> glibsql.with_statement(glibsql.ExecuteStatement(
+      sql: "UPDATE posts SET status = 'published' WHERE user_id IN (1,2,3)",
+    ))
+    |> glibsql.with_statement(glibsql.ExecuteStatement(
+      sql: "COMMIT",
+    ))
+    |> glibsql.with_statement(glibsql.CloseStatement)
+    |> glibsql.with_baton("<baton from previous request>")
+    |> glibsql.build
+
+  use response <- result.try(httpc.send(second_request))
 }
+
+fn base_request() {
+  glibsql.new_http_request()
+  |> glibsql.with_database("database")
+  |> glibsql.with_organization("organization")
+  |> glibsql.with_token("token")
+}
+
 ```
 
 Further documentation can be found at <https://hexdocs.pm/glibsql>.
