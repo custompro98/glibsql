@@ -7,6 +7,7 @@ import gleam/http
 import gleam/http/request as http_request
 import gleam/json
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/string
 
 /// Statement wraps the supported types of requests.
@@ -37,6 +38,7 @@ pub opaque type HttpRequest {
     path: String,
     token: String,
     statements: List(Statement),
+    baton: Option(String),
   )
 }
 
@@ -51,6 +53,7 @@ pub fn new_http_request() -> HttpRequest {
     path: "/v2/pipeline",
     token: "",
     statements: [],
+    baton: None,
   )
 }
 
@@ -110,6 +113,11 @@ pub fn clear_statements(request: HttpRequest) -> HttpRequest {
   HttpRequest(..request, statements: [])
 }
 
+/// Set the baton from a previous connection to be reused.
+pub fn with_baton(request: HttpRequest, baton: String) -> HttpRequest {
+  HttpRequest(..request, baton: Some(baton))
+}
+
 /// Build the request using the previously provided values.
 /// Returns a gleam/http request suitable to be used in your HTTP client of choice.
 pub fn build(request: HttpRequest) -> http_request.Request(String) {
@@ -147,6 +155,9 @@ fn build_json(req: HttpRequest) {
       }
     })
 
-  json.object([#("requests", json.preprocessed_array(statements))])
+  json.object([
+    #("baton", json.nullable(req.baton, of: json.string)),
+    #("requests", json.preprocessed_array(statements)),
+  ])
   |> json.to_string
 }
