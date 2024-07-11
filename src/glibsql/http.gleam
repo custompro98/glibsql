@@ -26,12 +26,12 @@ pub type Statement {
   CloseStatement
 }
 
-/// HttpRequest encapsulates everything needed to execute
+/// Request encapsulates everything needed to execute
 /// a Hrana over HTTP libSQL request.
 ///
-/// see `new_http_request()` to construct this record.
-pub opaque type HttpRequest {
-  HttpRequest(
+/// see `new_request()` to construct this record.
+pub opaque type Request {
+  Request(
     database: String,
     organization: String,
     host: String,
@@ -45,8 +45,8 @@ pub opaque type HttpRequest {
 /// Create a new Hrana over HTTP libSQL request.
 ///
 /// Uses the builder pattern to construct everything necessary to send a request.
-pub fn new_http_request() -> HttpRequest {
-  HttpRequest(
+pub fn new_request() -> Request {
+  Request(
     database: "",
     organization: "",
     host: "turso.io",
@@ -62,8 +62,8 @@ pub fn new_http_request() -> HttpRequest {
 ///
 /// Given a Turso databse URL like libsql://example-database-myorganization.turso.io
 /// The database name is "example-database"
-pub fn with_database(request: HttpRequest, database: String) -> HttpRequest {
-  HttpRequest(..request, database: database)
+pub fn with_database(request: Request, database: String) -> Request {
+  Request(..request, database: database)
 }
 
 /// Set the target database organization.
@@ -72,10 +72,10 @@ pub fn with_database(request: HttpRequest, database: String) -> HttpRequest {
 /// Given a Turso databse URL like libsql://example-database-myorganization.turso.io
 /// The database name is "myorganization"
 pub fn with_organization(
-  request: HttpRequest,
+  request: Request,
   organization: String,
-) -> HttpRequest {
-  HttpRequest(..request, organization: organization)
+) -> Request {
+  Request(..request, organization: organization)
 }
 
 /// Set the target database host.
@@ -84,43 +84,43 @@ pub fn with_organization(
 ///
 /// Given a Turso databse URL like libsql://example-database-myorganization.turso.io
 /// The host name is "turso.io"
-pub fn with_host(request: HttpRequest, host: String) -> HttpRequest {
-  HttpRequest(..request, host: host)
+pub fn with_host(request: Request, host: String) -> Request {
+  Request(..request, host: host)
 }
 
 /// Set the target database path on the host.
 /// NOTE: this defaults to Turso's /v2/pipeline
 /// Calling this function multiple times will override the previous value.
-pub fn with_path(request: HttpRequest, path: String) -> HttpRequest {
-  HttpRequest(..request, path: path)
+pub fn with_path(request: Request, path: String) -> Request {
+  Request(..request, path: path)
 }
 
 /// Set the Bearer token to access the database. Do not include `Bearer `.
 /// Calling this function multiple times will override the previous value.
-pub fn with_token(request: HttpRequest, token: String) -> HttpRequest {
-  HttpRequest(..request, token: token)
+pub fn with_token(request: Request, token: String) -> Request {
+  Request(..request, token: token)
 }
 
 /// Set a statement on the request.
 /// This function may be called multiple times, additional statements will be
 /// executed in order.
-pub fn with_statement(request: HttpRequest, statement: Statement) -> HttpRequest {
-  HttpRequest(..request, statements: [statement, ..request.statements])
+pub fn with_statement(request: Request, statement: Statement) -> Request {
+  Request(..request, statements: [statement, ..request.statements])
 }
 
 /// Clear all statements from the request.
-pub fn clear_statements(request: HttpRequest) -> HttpRequest {
-  HttpRequest(..request, statements: [])
+pub fn clear_statements(request: Request) -> Request {
+  Request(..request, statements: [])
 }
 
 /// Set the baton from a previous connection to be reused.
-pub fn with_baton(request: HttpRequest, baton: String) -> HttpRequest {
-  HttpRequest(..request, baton: Some(baton))
+pub fn with_baton(request: Request, baton: String) -> Request {
+  Request(..request, baton: Some(baton))
 }
 
 /// Build the request using the previously provided values.
 /// Returns a gleam/http request suitable to be used in your HTTP client of choice.
-pub fn build(request: HttpRequest) -> http_request.Request(String) {
+pub fn build(request: Request) -> http_request.Request(String) {
   http_request.new()
   |> http_request.set_method(http.Post)
   |> http_request.set_scheme(http.Https)
@@ -134,11 +134,11 @@ pub fn build(request: HttpRequest) -> http_request.Request(String) {
   )
   |> http_request.set_header("Content-Type", "application/json")
   |> http_request.set_header("Accept", "application/json")
-  |> http_request.set_header("User-Agent", "glibsql/0.2.0")
+  |> http_request.set_header("User-Agent", "glibsql/0.3.0")
   |> http_request.set_body(build_json(request))
 }
 
-fn build_json(req: HttpRequest) {
+fn build_json(req: Request) {
   let statements =
     list.reverse(req.statements)
     |> list.map(fn(stmt) {

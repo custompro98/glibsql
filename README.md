@@ -5,7 +5,9 @@
 
 Glibsql is a library for interacting with a hosted libSQL database such as [Turso](https://turso.tech).
 
-Glibsql helps construct a `gleam/http/request` for use with the [Hrana over HTTP](https://docs.turso.tech/sdk/http/reference) variant of libSQL,
+## glibsql/http
+
+`glibsql/http` helps construct a `gleam/http/request` for use with the [Hrana over HTTP](https://docs.turso.tech/sdk/http/reference) variant of libSQL,
 simply pass the constructed HTTP request into your http client of choice.
 
 ```sh
@@ -14,7 +16,7 @@ gleam add glibsql
 ```gleam
 import gleam/httpc
 import gleam/result
-import glibsql
+import glibsql/http as glibsql
 
 pub fn main() {
   // The first request does not have to include a `CloseStatement`,
@@ -52,7 +54,7 @@ pub fn main() {
 }
 
 fn base_request() {
-  glibsql.new_http_request()
+  glibsql.new_request()
   |> glibsql.with_database("database")
   |> glibsql.with_organization("organization")
   |> glibsql.with_token("token")
