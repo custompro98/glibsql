@@ -31,6 +31,8 @@ pub fn main() {
     ))
     |> glibsql.build
 
+  let assert Ok(request) = request
+
   use response <- result.try(httpc.send(request))
 
   // ...
@@ -49,6 +51,8 @@ pub fn main() {
     |> glibsql.with_statement(glibsql.CloseStatement)
     |> glibsql.with_baton("<baton from previous request>")
     |> glibsql.build
+
+  let assert Ok(second_request) = second_request
 
   use response <- result.try(httpc.send(second_request))
 }
