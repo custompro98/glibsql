@@ -66,19 +66,27 @@ fn do_build(url: String, token: String) -> Result(LibsqlClient, GlibsqlError) {
   todo
 }
 
-pub opaque type LibsqlResponse(record) {
+/// Represents a response from a libSQL query.
+///
+/// The `records` parameter is the type of the rows returned by the query.
+pub opaque type LibsqlResponse(records) {
   LibsqlResponse(
     rows_affected: Int,
     last_insert_rowid: Option(Int),
-    rows: record,
+    rows: records,
   )
 }
 
-// -> Promise(Result(record, GlibsqlError))
+/// Execute a query against the database.
+///
+/// Returns a `LibsqlResponse` containing
+/// - the number of rows affected
+/// - the last insert rowid
+/// - the rows returned by the query (decoded using the provided decoder)
 pub fn execute(
   query: String,
   on client: LibsqlClient,
-  returning decoder: decode.Decoder(record),
+  returning decoder: decode.Decoder(records),
 ) {
   use resp <- await(do_execute(client, query))
 
@@ -95,7 +103,11 @@ pub fn execute(
       |> decode.field("last_insert_rowid", decode.optional(decode.int))
       |> decode.field("rows", decoder)
       |> decode.from(dynamic.from(resp))
-      |> result.map_error(fn(_) { ParseError("Failed to parse response") })
+      |> result.map_error(fn(_) {
+        ParseError(
+          "Failed to decode rows. Did you mean to provide a `decode.list(decoder)`?",
+        )
+      })
       |> promise.resolve
     }
     Error(error) -> {
