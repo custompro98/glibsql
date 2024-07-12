@@ -2,7 +2,6 @@
 
 import decode
 import gleam/dynamic
-import gleam/io
 import gleam/javascript/promise.{type Promise, await}
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -61,10 +60,7 @@ pub fn build(config: Config) {
 }
 
 @external(javascript, "../libsql_ffi.mjs", "do_build")
-fn do_build(url: String, token: String) -> Result(LibsqlClient, GlibsqlError) {
-  // Erlang target tbd
-  todo
-}
+fn do_build(_url: String, _token: String) -> Result(LibsqlClient, GlibsqlError) 
 
 /// Represents a response from a libSQL query.
 ///
@@ -111,7 +107,6 @@ pub fn execute(
       |> promise.resolve
     }
     Error(error) -> {
-      io.debug(error)
       promise.resolve(Error(error))
     }
   }
@@ -119,9 +114,6 @@ pub fn execute(
 
 @external(javascript, "../libsql_ffi.mjs", "do_execute")
 fn do_execute(
-  client: LibsqlClient,
-  query: String,
-) -> Promise(Result(String, GlibsqlError)) {
-  // Erlang target tbd
-  todo
-}
+  _client: LibsqlClient,
+  _query: String,
+) -> Promise(Result(String, GlibsqlError))

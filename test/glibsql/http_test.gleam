@@ -13,7 +13,7 @@ pub fn builder_custom_host_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.4.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.5.0")
     |> http_request.set_body("{\"baton\":null,\"requests\":[]}")
 
   glibsql.new_request()
@@ -36,7 +36,7 @@ pub fn builder_no_statements_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.4.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.5.0")
     |> http_request.set_body("{\"baton\":null,\"requests\":[]}")
 
   glibsql.new_request()
@@ -57,7 +57,7 @@ pub fn builder_single_statement_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.4.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.5.0")
     |> http_request.set_body(
       "{\"baton\":null,\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users\"}},{\"type\":\"close\"}]}",
     )
@@ -82,7 +82,7 @@ pub fn builder_many_statement_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.4.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.5.0")
     |> http_request.set_body(
       "{\"baton\":null,\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users\"}},{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM posts\"}},{\"type\":\"close\"}]}",
     )
@@ -108,7 +108,7 @@ pub fn builder_clear_statements_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.4.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.5.0")
     |> http_request.set_body("{\"baton\":null,\"requests\":[]}")
 
   glibsql.new_request()
@@ -133,7 +133,7 @@ pub fn builder_baton_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.4.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.5.0")
     |> http_request.set_body(
       "{\"baton\":\"baton\",\"requests\":[{\"type\":\"close\"}]}",
     )
