@@ -76,9 +76,9 @@ pub opaque type LibsqlResponse(record) {
 
 // -> Promise(Result(record, GlibsqlError))
 pub fn execute(
-  client: LibsqlClient,
   query: String,
-  decoder: decode.Decoder(record),
+  on client: LibsqlClient,
+  returning decoder: decode.Decoder(record),
 ) {
   use resp <- await(do_execute(client, query))
 
