@@ -60,10 +60,7 @@ pub fn build(config: Config) {
 }
 
 @external(javascript, "../libsql_ffi.mjs", "do_build")
-fn do_build(_url: String, _token: String) -> Result(LibsqlClient, GlibsqlError) {
-  // Erlang target tbd
-  todo
-}
+fn do_build(_url: String, _token: String) -> Result(LibsqlClient, GlibsqlError) 
 
 /// Represents a response from a libSQL query.
 ///
@@ -119,7 +116,4 @@ pub fn execute(
 fn do_execute(
   _client: LibsqlClient,
   _query: String,
-) -> Promise(Result(String, GlibsqlError)) {
-  // Erlang target tbd
-  todo
-}
+) -> Promise(Result(String, GlibsqlError))
