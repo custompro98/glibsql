@@ -60,7 +60,7 @@ pub fn build(config: Config) {
 }
 
 @external(javascript, "../libsql_ffi.mjs", "do_build")
-fn do_build(_url: String, _token: String) -> Result(LibsqlClient, GlibsqlError) 
+fn do_build(_url: String, _token: String) -> Result(LibsqlClient, GlibsqlError)
 
 /// Represents a response from a libSQL query.
 ///
