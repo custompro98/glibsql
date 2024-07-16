@@ -165,7 +165,7 @@ pub fn build(
     )
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.5.1")
+    |> http_request.set_header("User-Agent", "glibsql/0.6.0")
     |> http_request.set_body(build_json(request)),
   )
 }
@@ -353,7 +353,7 @@ fn json_parse(json: String) {
   Ok(dynamic_value)
 }
 
-@external(javascript, "glibsql_http_ffi.mjs", "decode")
+@external(javascript, "../glibsql_http_ffi.mjs", "decode")
 fn decode_string(json: String) -> Result(dynamic.Dynamic, Nil)
 
 pub fn decode_response(response: String) -> Result(HttpResponse, Nil) {
