@@ -1,16 +1,18 @@
 import app/internal/env
-import decode
-import gleam/bit_array
-import gleam/dynamic
+import birl
 import gleam/httpc
-import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import glibsql/http as glibsql
 
 pub type User {
-  User(id: Int, email: String, created_at: String, updated_at: Option(String))
+  User(
+    id: Int,
+    email: String,
+    created_at: birl.Time,
+    updated_at: Option(birl.Time),
+  )
 }
 
 pub fn main() {
@@ -36,125 +38,59 @@ pub fn main() {
 
   use response <- result.try(httpc.send(request))
 
-  let assert Ok(object) = json_parse(response.body)
-
-  let assert Ok(rows) =
-    build_decoder()
-    |> decode.from(object)
+  let users =
+    glibsql.decode_response(response.body)
     |> result.map(fn(resp) {
-      let assert Ok(first) = list.first(resp.results)
+      list.filter(resp.results, fn(res) {
+        case res {
+          glibsql.ExecuteResponse(_, _) -> True
+          glibsql.CloseResponse -> False
+        }
+      })
+      |> list.flat_map(fn(res) {
+        case res {
+          glibsql.ExecuteResponse(_columns, rows) -> {
+            list.map(rows, fn(row) {
+              let assert [id, email, created_at, updated_at] = row.values
 
-      case first.response.inner_result {
-        Some(inner_result) -> inner_result.rows
-        None -> []
-      }
+              User(
+                id: case id {
+                  glibsql.Integer(value) -> value
+                  _ -> panic as "Unexpected type"
+                },
+                email: case email {
+                  glibsql.Text(value) -> value
+                  _ -> panic as "Unexpected type"
+                },
+                created_at: case created_at {
+                  glibsql.Datetime(value) -> to_time(value)
+                  _ -> panic as "Unexpected type"
+                },
+                updated_at: case updated_at {
+                  glibsql.Datetime(value) -> Some(to_time(value))
+                  glibsql.Null -> None
+                  _ -> panic as "Unexpected type"
+                },
+              )
+            })
+          }
+          _ -> []
+        }
+      })
     })
-
-  let users = list.map(rows, fn(row) {
-    let values = list.map(row, fn(column) { column.value |> option.unwrap("") })
-
-    let assert [id, email, created_at, updated_at] = values
-    let assert Ok(id) = int.parse(id)
-    let updated_at = case updated_at {
-      "" -> None
-      str -> Some(str)
-    }
-
-    User(id, email, created_at, updated_at)
-  })
+    |> result.unwrap([])
 
   let assert [
-    User(1, "joe@example.com", "2024-07-12 02:17:13", None),
-    User(2, "chantel@example.com", "2024-07-12 02:17:20", None),
-    User(3, "bill@example.com", "2024-07-12 02:17:23", None),
-    User(4, "tom@example.com", "2024-07-12 02:17:28", None),
+    User(1, "joe@example.com", _user_1_created_at, None),
+    User(2, "chantel@example.com", _user_2_created_at, None),
+    User(3, "bill@example.com", _user_3_created_at, None),
+    User(4, "tom@example.com", _user_4_created_at, None),
   ] = users
 
   Ok(Nil)
 }
 
-// Turn the response into a Gleam data structure.
-
-fn json_parse(json: String) {
-  let ba = bit_array.from_string(json)
-  use dynamic_value <- result.try(decode_bits(ba))
-
-  Ok(dynamic_value)
-}
-
-@external(erlang, "app_ffi", "decode")
-fn decode_bits(json: BitArray) -> Result(dynamic.Dynamic, Nil)
-
-// Break down the response.
-
-type RowColumn {
-  RowColumn(type_: String, value: Option(String))
-}
-
-type InnerResult {
-  InnerResult(rows: List(List(RowColumn)))
-}
-
-type Response {
-  Response(type_: String, inner_result: Option(InnerResult))
-}
-
-type IResult {
-  IResult(type_: String, response: Response)
-}
-
-type GlibsqlHttpResponse {
-  GlibsqlHttpResponse(results: List(IResult))
-}
-
-fn build_decoder() {
-  let row_column_decoder =
-    decode.into({
-      use type_ <- decode.parameter
-      use value <- decode.parameter
-
-      RowColumn(type_, value)
-    })
-    |> decode.field("type", decode.string)
-    |> decode.field("value", decode.optional(decode.string))
-
-  let row_decoder = decode.list(of: row_column_decoder)
-
-  let inner_result_decoder =
-    decode.into({
-      use rows <- decode.parameter
-
-      InnerResult(rows)
-    })
-    |> decode.field("rows", decode.list(of: row_decoder))
-
-  let response_decoder =
-    decode.into({
-      use type_ <- decode.parameter
-      use inner_result <- decode.parameter
-
-      Response(type_, inner_result)
-    })
-    |> decode.field("type", decode.string)
-    |> decode.field("result", decode.optional(inner_result_decoder))
-
-  let result_decoder =
-    decode.into({
-      use type_ <- decode.parameter
-      use response <- decode.parameter
-
-      IResult(type_, response)
-    })
-    |> decode.field("type", decode.string)
-    |> decode.field("response", response_decoder)
-
-  let glibsql_http_response_decoder =
-    decode.into({
-      use results <- decode.parameter
-
-      GlibsqlHttpResponse(results)
-    })
-    |> decode.field("results", decode.list(of: result_decoder))
-
-  glibsql_http_response_decoder
+fn to_time(value: String) -> birl.Time {
+  let assert Ok(time) = birl.parse(value)
+  time
 }

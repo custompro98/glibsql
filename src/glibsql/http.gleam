@@ -1,13 +1,20 @@
 //// glibsql/http helps construct a `gleam/http/request` for use with the [Hrana over HTTP](https://docs.turso.tech/sdk/http/reference) variant of libSQL,
 //// simply pass the constructed HTTP request into your http client of choice.
 
+import decode
+import gleam/bit_array
+import gleam/dynamic
+import gleam/float
 import gleam/http
 import gleam/http/request as http_request
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+
+// Request side
 
 /// Statement wraps the supported types of requests.
 /// A series of `ExecuteStatement(String)`s can be applied and
@@ -185,4 +192,244 @@ fn build_json(req: HttpRequest) {
     #("requests", json.preprocessed_array(statements)),
   ])
   |> json.to_string
+}
+
+// IResponse side
+
+/// Values are the actual column values within a row.
+pub type Value {
+  /// Integers are the integer values returned from a query.
+  Integer(value: Int)
+  /// Reals are the float values returned from a query.
+  Real(value: Float)
+  /// Booleans are the boolean values returned from a query.
+  Boolean(value: Bool)
+  /// Texts are the text values returned from a query.
+  Text(value: String)
+  /// Datetimes are the datetime values returned from a query (as Strings).
+  Datetime(value: String)
+  /// Blobs are the blob values returned from a query (as Strings).
+  Blob(value: String)
+  /// Nulls are the null values returned from a query.
+  Null
+}
+
+/// Columns are the columns returned from a query, specifying the name and type.
+pub type Column {
+  Column(name: String, type_: String)
+}
+
+/// Rows are the rows returned from a query, containing the values as a list.
+pub type Row {
+  Row(values: List(Value))
+}
+
+pub type Response {
+  ExecuteResponse(columns: List(Column), rows: List(Row))
+  CloseResponse
+}
+
+/// HttpResponses are the response from a query, containing the columns, rows, and other metadata.
+pub type HttpResponse {
+  HttpResponse(baton: Option(String), results: List(Response))
+}
+
+// Break down the response.
+
+type IRowColumn {
+  IRowColumn(type_: String, value: Option(String), base64: Option(String))
+}
+
+type IInnerResult {
+  IInnerResult(rows: List(List(IRowColumn)), columns: List(Column))
+}
+
+type IResponse {
+  IResponse(type_: String, inner_result: Option(IInnerResult))
+}
+
+type IResult {
+  IResult(type_: String, response: IResponse)
+}
+
+type GlibsqlHttpResponse {
+  GlibsqlHttpResponse(baton: Option(String), results: List(IResult))
+}
+
+fn build_decoder() {
+  let row_column_decoder =
+    decode.into({
+      use type_ <- decode.parameter
+      use value <- decode.parameter
+      use base64 <- decode.parameter
+
+      IRowColumn(type_, value, base64)
+    })
+    |> decode.field("type", decode.string)
+    |> decode.field(
+      "value",
+      decode.one_of([
+        decode.optional(decode.string),
+        decode.optional(
+          decode.float
+          |> decode.map(float.to_string),
+        ),
+      ]),
+    )
+    |> decode.field("base64", decode.optional(decode.string))
+
+  let row_decoder = decode.list(of: row_column_decoder)
+
+  let column_decoder =
+    decode.into({
+      use name <- decode.parameter
+      use type_ <- decode.parameter
+
+      Column(name, type_)
+    })
+    |> decode.field("name", decode.string)
+    |> decode.field("decltype", decode.string)
+
+  let inner_result_decoder =
+    decode.into({
+      use rows <- decode.parameter
+      use columns <- decode.parameter
+
+      IInnerResult(rows, columns)
+    })
+    |> decode.field("rows", decode.list(of: row_decoder))
+    |> decode.field("cols", decode.list(of: column_decoder))
+
+  let response_decoder =
+    decode.into({
+      use type_ <- decode.parameter
+      use inner_result <- decode.parameter
+
+      IResponse(type_, inner_result)
+    })
+    |> decode.field("type", decode.string)
+    |> decode.field("result", decode.optional(inner_result_decoder))
+
+  let result_decoder =
+    decode.into({
+      use type_ <- decode.parameter
+      use response <- decode.parameter
+
+      IResult(type_, response)
+    })
+    |> decode.field("type", decode.string)
+    |> decode.field("response", response_decoder)
+
+  let glibsql_http_response_decoder =
+    decode.into({
+      use baton <- decode.parameter
+      use results <- decode.parameter
+
+      GlibsqlHttpResponse(baton, results)
+    })
+    |> decode.field("baton", decode.optional(decode.string))
+    |> decode.field("results", decode.list(of: result_decoder))
+
+  glibsql_http_response_decoder
+}
+
+// Turn the response into a Gleam data structure.
+
+@target(erlang)
+fn json_parse(json: String) {
+  let ba = bit_array.from_string(json)
+  use dynamic_value <- result.try(decode_bits(ba))
+
+  Ok(dynamic_value)
+}
+
+@external(erlang, "glibsql_http_ffi", "decode")
+fn decode_bits(json: BitArray) -> Result(dynamic.Dynamic, Nil)
+
+@target(javascript)
+fn json_parse(json: String) {
+  use dynamic_value <- result.try(decode_string(json))
+
+  Ok(dynamic_value)
+}
+
+@external(javascript, "glibsql_http_ffi.mjs", "decode")
+fn decode_string(json: String) -> Result(dynamic.Dynamic, Nil)
+
+pub fn decode_response(response: String) -> Result(HttpResponse, Nil) {
+  use object <- result.try(json_parse(response))
+
+  build_decoder()
+  |> decode.from(object)
+  |> result.map(fn(resp) {
+    let responses =
+      list.map(resp.results, fn(res) {
+        case res.response.inner_result {
+          Some(inner_result) -> {
+            let columns =
+              list.map(inner_result.columns, fn(col) {
+                Column(col.name, col.type_)
+              })
+
+            let rows =
+              list.map(inner_result.rows, fn(row) {
+                let zipped = list.zip(columns, row)
+
+                Row(
+                  list.map(zipped, fn(zip) {
+                    let col = zip.0
+                    let rowcol = zip.1
+
+                    case col.type_, rowcol.type_ {
+                      _, "null" -> Null
+                      "INTEGER", _ -> {
+                        let assert Ok(value) =
+                          int.parse(rowcol.value |> option.unwrap(""))
+                        Integer(value)
+                      }
+                      "REAL", _ -> {
+                        let assert Ok(value) =
+                          float.parse(rowcol.value |> option.unwrap(""))
+                        Real(value)
+                      }
+                      "NUMERIC", _ -> {
+                        let assert Ok(value) =
+                          float.parse(rowcol.value |> option.unwrap(""))
+                        Real(value)
+                      }
+                      // DECIMAL looks like "DECIMAL(10, 2)"
+                      "DECIMAL" <> _, _ -> {
+                        let assert Ok(value) =
+                          float.parse(rowcol.value |> option.unwrap(""))
+                        Real(value)
+                      }
+                      "BOOLEAN", _ ->
+                        Boolean(rowcol.value |> option.unwrap("0") == "1")
+
+                      "TEXT", _ -> Text(rowcol.value |> option.unwrap(""))
+                      "DATETIME", _ ->
+                        Datetime(rowcol.value |> option.unwrap(""))
+                      "BLOB", _ -> Blob(rowcol.base64 |> option.unwrap(""))
+                      coltype, rowcoltype -> {
+                        panic as {
+                          "Unhandled libsql data type "
+                          <> coltype
+                          <> " "
+                          <> rowcoltype
+                        }
+                      }
+                    }
+                  }),
+                )
+              })
+
+            ExecuteResponse(columns, rows)
+          }
+          None -> CloseResponse
+        }
+      })
+
+    HttpResponse(results: responses, baton: resp.baton)
+  })
+  |> result.nil_error
 }
