@@ -25,9 +25,11 @@ pub fn main() {
     base_request()
     |> glibsql.with_statement(glibsql.ExecuteStatement(
       sql: "BEGIN",
+      arguments: None,
     ))
     |> glibsql.with_statement(glibsql.ExecuteStatement(
       sql: "SELECT * FROM users",
+      arguments: None,
     ))
     |> glibsql.build
 

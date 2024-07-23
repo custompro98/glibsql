@@ -25,7 +25,17 @@ pub fn main() {
 
   let statement =
     glibsql.new_statement()
-    |> glibsql.with_query("SELECT id, email, created_at, updated_at FROM users")
+    |> glibsql.with_query(
+      "SELECT id, email, created_at, updated_at FROM users WHERE id = :id OR email = $email",
+    )
+    |> glibsql.with_argument(glibsql.NamedArgument(
+      name: "email",
+      value: glibsql.Text("tom@example.com"),
+    ))
+    |> glibsql.with_argument(glibsql.NamedArgument(
+      name: "id",
+      value: glibsql.Integer(1),
+    ))
 
   let request =
     glibsql.new_request()
@@ -84,8 +94,6 @@ pub fn main() {
 
   let assert [
     User(1, "joe@example.com", _user_1_created_at, None),
-    User(2, "chantel@example.com", _user_2_created_at, None),
-    User(3, "bill@example.com", _user_3_created_at, None),
     User(4, "tom@example.com", _user_4_created_at, None),
   ] = users
 

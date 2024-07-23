@@ -1,4 +1,5 @@
-//// glibsql/http helps construct a `gleam/http/request` for use with the [Hrana over HTTP](https://docs.turso.tech/sdk/http/reference) variant of libSQL,
+//// glibsql/http helps construct a `gleam/http/request` for use with the 
+//// [Hrana over HTTP](https://docs.turso.tech/sdk/http/reference) variant of libSQL,
 //// simply pass the constructed HTTP request into your http client of choice.
 
 import decode
@@ -16,16 +17,28 @@ import gleam/string
 
 // Request side
 
+/// Arguments are the arguments to a query, either anonymous or named.
+/// Only one of the types may be used per statement.
+pub type Argument {
+  /// AnonymousArguments are the anonymous arguments to a query specified using the `?` syntax.
+  AnonymousArgument(value: Value)
+  /// NamedArguments are the named arguments to a query specified using either 
+  /// the `:name`, the `@name`, or the `$name` syntax.
+  NamedArgument(name: String, value: Value)
+}
+
 /// Statement wraps the supported types of requests.
 /// A series of `ExecuteStatement(String)`s can be applied and
 /// be conditionally followed with a `CloseStatement` to close
 /// a connection when you are done with it.
+///
+/// See `new_statement()` to construct this record.
 pub type Statement {
   /// `ExecuteStatement` contains a query that will be executed as written.
   /// There is no SQL-injection protection provided, this type of statement
   /// should be used with a query builder that can render the built query
   /// to a prepared string.
-  ExecuteStatement(sql: String)
+  ExecuteStatement(query: String, arguments: Option(List(Argument)))
   /// `CloseStatment` will either close the connection used in the current 
   /// pipeline or will close the connection referenced by the request baton.
   /// Note: connections will be automatically closed by Turso after a 10s timeout.
@@ -130,6 +143,49 @@ pub fn with_baton(request: HttpRequest, baton: String) -> HttpRequest {
   HttpRequest(..request, baton: Some(baton))
 }
 
+/// Create a new ExecuteStatement.
+///
+/// Uses the builder pattern to construct everything necessary to send a request.
+pub fn new_statement() -> Statement {
+  ExecuteStatement("", None)
+}
+
+/// Set a query on the ExecuteStatement.
+/// Calling this function multiple times will override the previous value.
+pub fn with_query(statement: Statement, query: String) -> Statement {
+  case statement {
+    ExecuteStatement(_, arguments) -> {
+      ExecuteStatement(query, arguments)
+    }
+    CloseStatement -> CloseStatement
+  }
+}
+
+/// Set an argument on the ExecuteStatement.
+/// This function may be called multiple times, additional arguments will be
+/// applied in order.
+pub fn with_argument(statement: Statement, argument: Argument) -> Statement {
+  case statement {
+    ExecuteStatement(query, Some(arguments)) -> {
+      ExecuteStatement(query, Some([argument, ..arguments]))
+    }
+    ExecuteStatement(query, None) -> {
+      ExecuteStatement(query, Some([argument]))
+    }
+    CloseStatement -> CloseStatement
+  }
+}
+
+/// Clear all arguments from the ExecuteStatement.
+pub fn clear_arguments(statement: Statement) -> Statement {
+  case statement {
+    ExecuteStatement(query, _) -> {
+      ExecuteStatement(query, None)
+    }
+    CloseStatement -> CloseStatement
+  }
+}
+
 /// Build the request using the previously provided values.
 /// Returns a gleam/http request suitable to be used in your HTTP client of choice.
 pub fn build(
@@ -165,7 +221,7 @@ pub fn build(
     )
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.6.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
     |> http_request.set_body(build_json(request)),
   )
 }
@@ -175,10 +231,17 @@ fn build_json(req: HttpRequest) {
     list.reverse(req.statements)
     |> list.map(fn(stmt) {
       case stmt {
-        ExecuteStatement(sql: sql) -> {
+        ExecuteStatement(query: query, arguments: arguments) -> {
           json.object([
             #("type", json.string("execute")),
-            #("stmt", json.object([#("sql", json.string(sql))])),
+            #(
+              "stmt",
+              json.object([
+                #("sql", json.string(query)),
+                #("args", build_anonymous_arguments(arguments)),
+                #("named_args", build_named_arguments(arguments)),
+              ]),
+            ),
           ])
         }
         CloseStatement -> {
@@ -194,23 +257,119 @@ fn build_json(req: HttpRequest) {
   |> json.to_string
 }
 
-// IResponse side
+fn build_anonymous_arguments(arguments: Option(List(Argument))) -> json.Json {
+  case arguments {
+    Some(arguments) -> {
+      arguments
+      |> list.filter(fn(arg) {
+        case arg {
+          AnonymousArgument(_) -> True
+          NamedArgument(_, _) -> False
+        }
+      })
+      |> list.map(fn(arg) {
+        case arg {
+          AnonymousArgument(value) -> build_inner_argument_value(value)
 
-/// Values are the actual column values within a row.
+          NamedArgument(_, _) -> {
+            panic as "Named arguments are not supported in anonymous arguments"
+          }
+        }
+      })
+      |> json.preprocessed_array
+    }
+    None -> json.preprocessed_array([])
+  }
+}
+
+fn build_named_arguments(arguments: Option(List(Argument))) {
+  case arguments {
+    Some(arguments) -> {
+      arguments
+      |> list.filter(fn(arg) {
+        case arg {
+          NamedArgument(_, _) -> True
+          AnonymousArgument(_) -> False
+        }
+      })
+      |> list.map(fn(arg) {
+        case arg {
+          NamedArgument(name, argument) -> {
+            json.object([
+              #("name", json.string(name)),
+              #("value", build_inner_argument_value(argument)),
+            ])
+          }
+          AnonymousArgument(_) -> {
+            panic as "Anonymous arguments are not supported in named arguments"
+          }
+        }
+      })
+      |> json.preprocessed_array
+    }
+    None -> json.preprocessed_array([])
+  }
+}
+
+fn build_inner_argument_value(value: Value) -> json.Json {
+  case value {
+    Integer(value) ->
+      json.object([
+        #("type", json.string("integer")),
+        #("value", json.string(int.to_string(value))),
+      ])
+    Real(value) ->
+      json.object([
+        #("type", json.string("float")),
+        #("value", json.string(float.to_string(value))),
+      ])
+    Boolean(value) ->
+      json.object([
+        #("type", json.string("integer")),
+        #(
+          "value",
+          json.string(case value {
+            True -> "1"
+            False -> "0"
+          }),
+        ),
+      ])
+    Text(value) ->
+      json.object([
+        #("type", json.string("text")),
+        #("value", json.string(value)),
+      ])
+    Datetime(value) ->
+      json.object([
+        #("type", json.string("text")),
+        #("value", json.string(value)),
+      ])
+    Blob(value) ->
+      json.object([
+        #("type", json.string("blob")),
+        #("base64", json.string(value)),
+      ])
+    Null -> json.object([#("type", json.string("null"))])
+  }
+}
+
+// Response side
+
+/// Values are actual column values.
 pub type Value {
-  /// Integers are the integer values returned from a query.
+  /// Integers are integer values.
   Integer(value: Int)
-  /// Reals are the float values returned from a query.
+  /// Reals are float values.
   Real(value: Float)
-  /// Booleans are the boolean values returned from a query.
+  /// Booleans are boolean values.
   Boolean(value: Bool)
-  /// Texts are the text values returned from a query.
+  /// Texts are text values.
   Text(value: String)
-  /// Datetimes are the datetime values returned from a query (as Strings).
+  /// Datetimes are datetime values.
   Datetime(value: String)
-  /// Blobs are the blob values returned from a query (as Strings).
+  /// Blobs are blob values.
   Blob(value: String)
-  /// Nulls are the null values returned from a query.
+  /// Nulls are null values.
   Null
 }
 

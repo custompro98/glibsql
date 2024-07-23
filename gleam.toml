@@ -1,5 +1,5 @@
 name = "glibsql"
-version = "0.6.0"
+version = "0.7.0"
 
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
@@ -9,7 +9,8 @@ licences = ["Apache-2.0"]
 repository = { type = "github", user = "custompro98", repo = "glibsql" }
 links = [
     { title = "Turso", href = "https://turso.tech" },
-    { title = "Hrana over HTTP", href = "https://docs.turso.tech/sdk/http/reference"}
+    { title = "Hrana over HTTP", href = "https://docs.turso.tech/sdk/http/reference"},
+    { title = "Examples", href = "https://github.com/custompro98/glibsql/tree/main/examples"}
 ]
 target = "javascript"
 #
