@@ -25,7 +25,15 @@ pub fn main() {
 
   let statement =
     glibsql.new_statement()
-    |> glibsql.with_query("SELECT id, email, created_at, updated_at FROM users WHERE id < 5")
+    |> glibsql.with_query(
+      "INSERT INTO users (email) VALUES (?), (?) RETURNING *",
+    )
+    |> glibsql.with_argument(
+      glibsql.AnonymousArgument(value: glibsql.Text("phil@example.com")),
+    )
+    |> glibsql.with_argument(
+      glibsql.AnonymousArgument(value: glibsql.Text("joey@example.com")),
+    )
 
   let request =
     glibsql.new_request()
@@ -83,11 +91,11 @@ pub fn main() {
     |> result.unwrap([])
 
   let assert [
-    User(1, "joe@example.com", _user_1_created_at, None),
-    User(2, "chantel@example.com", _user_2_created_at, None),
-    User(3, "bill@example.com", _user_3_created_at, None),
-    User(4, "tom@example.com", _user_4_created_at, None),
+    User(_new_user_id_1, "phil@example.com", _new_user_1_created_at, None),
+    User(_new_user_id_2, "joey@example.com", _new_user_2_created_at, None),
   ] = users
+
+  let assert Ok(_response) = clean_up(env)
 
   Ok(Nil)
 }
@@ -95,4 +103,22 @@ pub fn main() {
 fn to_time(value: String) -> birl.Time {
   let assert Ok(time) = birl.parse(value)
   time
+}
+
+fn clean_up(env: env.Env) {
+  let statement =
+    glibsql.new_statement()
+    |> glibsql.with_query("DELETE FROM users WHERE id > 4")
+
+  let request =
+    glibsql.new_request()
+    |> glibsql.with_database(env.database_name)
+    |> glibsql.with_organization(env.database_organization)
+    |> glibsql.with_token(env.database_auth_token)
+    |> glibsql.with_statement(statement)
+    |> glibsql.with_statement(glibsql.CloseStatement)
+    |> glibsql.build
+
+  let assert Ok(request) = request
+  httpc.send(request)
 }

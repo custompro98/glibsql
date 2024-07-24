@@ -221,7 +221,7 @@ pub fn build(
     )
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body(build_json(request)),
   )
 }
@@ -276,6 +276,7 @@ fn build_anonymous_arguments(arguments: Option(List(Argument))) -> json.Json {
           }
         }
       })
+      |> list.reverse
       |> json.preprocessed_array
     }
     None -> json.preprocessed_array([])
@@ -305,6 +306,7 @@ fn build_named_arguments(arguments: Option(List(Argument))) {
           }
         }
       })
+      |> list.reverse
       |> json.preprocessed_array
     }
     None -> json.preprocessed_array([])

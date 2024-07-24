@@ -14,7 +14,7 @@ pub fn builder_custom_host_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body("{\"baton\":null,\"requests\":[]}")
 
   glibsql.new_request()
@@ -37,7 +37,7 @@ pub fn builder_no_statements_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body("{\"baton\":null,\"requests\":[]}")
 
   glibsql.new_request()
@@ -58,7 +58,7 @@ pub fn builder_single_statement_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body(
       "{\"baton\":null,\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users\",\"args\":[],\"named_args\":[]}},{\"type\":\"close\"}]}",
     )
@@ -86,7 +86,7 @@ pub fn builder_many_statement_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body(
       "{\"baton\":null,\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users\",\"args\":[],\"named_args\":[]}},{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM posts\",\"args\":[],\"named_args\":[]}},{\"type\":\"close\"}]}",
     )
@@ -118,7 +118,7 @@ pub fn builder_clear_statements_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body("{\"baton\":null,\"requests\":[]}")
 
   glibsql.new_request()
@@ -149,7 +149,7 @@ pub fn builder_baton_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body(
       "{\"baton\":\"baton\",\"requests\":[{\"type\":\"close\"}]}",
     )
@@ -180,7 +180,7 @@ pub fn builder_anonymous_arguments_statement_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body(
       "{\"baton\":null,\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users WHERE id = ?\",\"args\":[{\"type\":\"integer\",\"value\":\"1\"}],\"named_args\":[]}},{\"type\":\"close\"}]}",
     )
@@ -210,7 +210,7 @@ pub fn builder_named_arguments_statement_test() {
     |> http_request.set_header("Authorization", "Bearer token")
     |> http_request.set_header("Content-Type", "application/json")
     |> http_request.set_header("Accept", "application/json")
-    |> http_request.set_header("User-Agent", "glibsql/0.7.0")
+    |> http_request.set_header("User-Agent", "glibsql/0.7.1")
     |> http_request.set_body(
       "{\"baton\":null,\"requests\":[{\"type\":\"execute\",\"stmt\":{\"sql\":\"SELECT * FROM users WHERE id = :id\",\"args\":[],\"named_args\":[{\"name\":\"id\",\"value\":{\"type\":\"integer\",\"value\":\"1\"}}]}},{\"type\":\"close\"}]}",
     )
