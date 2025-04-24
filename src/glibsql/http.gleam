@@ -27,6 +27,53 @@ pub type Argument {
   NamedArgument(name: String, value: Value)
 }
 
+fn encode_argument(argument: Argument) -> json.Json {
+  case argument {
+    AnonymousArgument(value:) -> encode_value(value)
+    NamedArgument(name:, value:) ->
+      json.object([
+        #("name", json.string(name)),
+        #("value", encode_value(value)),
+      ])
+  }
+}
+
+fn encode_anonymous_arguments(arguments: Option(List(Argument))) -> json.Json {
+  case arguments {
+    Some(arguments) -> {
+      arguments
+      |> list.filter(fn(arg) {
+        case arg {
+          AnonymousArgument(_) -> True
+          NamedArgument(_, _) -> False
+        }
+      })
+      |> list.map(encode_argument)
+      |> list.reverse
+      |> json.preprocessed_array
+    }
+    None -> json.preprocessed_array([])
+  }
+}
+
+fn encode_named_arguments(arguments: Option(List(Argument))) -> json.Json {
+  case arguments {
+    Some(arguments) -> {
+      arguments
+      |> list.filter(fn(arg) {
+        case arg {
+          AnonymousArgument(_) -> False
+          NamedArgument(_, _) -> True
+        }
+      })
+      |> list.map(encode_argument)
+      |> list.reverse
+      |> json.preprocessed_array
+    }
+    None -> json.preprocessed_array([])
+  }
+}
+
 /// Statement wraps the supported types of requests.
 /// A series of `ExecuteStatement(String)`s can be applied and
 /// be conditionally followed with a `CloseStatement` to close
@@ -43,6 +90,24 @@ pub type Statement {
   /// pipeline or will close the connection referenced by the request baton.
   /// Note: connections will be automatically closed by Turso after a 10s timeout.
   CloseStatement
+}
+
+fn encode_statement(statement: Statement) -> json.Json {
+  case statement {
+    ExecuteStatement(query:, arguments:) ->
+      json.object([
+        #("type", json.string("execute")),
+        #(
+          "stmt",
+          json.object([
+            #("sql", json.string(query)),
+            #("args", encode_anonymous_arguments(arguments)),
+            #("named_args", encode_named_arguments(arguments)),
+          ]),
+        ),
+      ])
+    CloseStatement -> json.object([#("type", json.string("close"))])
+  }
 }
 
 /// HttpRequest encapsulates everything needed to execute
@@ -228,131 +293,15 @@ pub fn build(
 
 fn build_json(req: HttpRequest) {
   let statements =
-    list.reverse(req.statements)
-    |> list.map(fn(stmt) {
-      case stmt {
-        ExecuteStatement(query: query, arguments: arguments) -> {
-          json.object([
-            #("type", json.string("execute")),
-            #(
-              "stmt",
-              json.object([
-                #("sql", json.string(query)),
-                #("args", build_anonymous_arguments(arguments)),
-                #("named_args", build_named_arguments(arguments)),
-              ]),
-            ),
-          ])
-        }
-        CloseStatement -> {
-          json.object([#("type", json.string("close"))])
-        }
-      }
-    })
+    req.statements
+    |> list.map(encode_statement)
+    |> list.reverse
 
   json.object([
     #("baton", json.nullable(req.baton, of: json.string)),
     #("requests", json.preprocessed_array(statements)),
   ])
   |> json.to_string
-}
-
-fn build_anonymous_arguments(arguments: Option(List(Argument))) -> json.Json {
-  case arguments {
-    Some(arguments) -> {
-      arguments
-      |> list.filter(fn(arg) {
-        case arg {
-          AnonymousArgument(_) -> True
-          NamedArgument(_, _) -> False
-        }
-      })
-      |> list.map(fn(arg) {
-        case arg {
-          AnonymousArgument(value) -> build_inner_argument_value(value)
-
-          NamedArgument(_, _) -> {
-            panic as "Named arguments are not supported in anonymous arguments"
-          }
-        }
-      })
-      |> list.reverse
-      |> json.preprocessed_array
-    }
-    None -> json.preprocessed_array([])
-  }
-}
-
-fn build_named_arguments(arguments: Option(List(Argument))) {
-  case arguments {
-    Some(arguments) -> {
-      arguments
-      |> list.filter(fn(arg) {
-        case arg {
-          NamedArgument(_, _) -> True
-          AnonymousArgument(_) -> False
-        }
-      })
-      |> list.map(fn(arg) {
-        case arg {
-          NamedArgument(name, argument) -> {
-            json.object([
-              #("name", json.string(name)),
-              #("value", build_inner_argument_value(argument)),
-            ])
-          }
-          AnonymousArgument(_) -> {
-            panic as "Anonymous arguments are not supported in named arguments"
-          }
-        }
-      })
-      |> list.reverse
-      |> json.preprocessed_array
-    }
-    None -> json.preprocessed_array([])
-  }
-}
-
-fn build_inner_argument_value(value: Value) -> json.Json {
-  case value {
-    Integer(value) ->
-      json.object([
-        #("type", json.string("integer")),
-        #("value", json.string(int.to_string(value))),
-      ])
-    Real(value) ->
-      json.object([
-        #("type", json.string("float")),
-        #("value", json.string(float.to_string(value))),
-      ])
-    Boolean(value) ->
-      json.object([
-        #("type", json.string("integer")),
-        #(
-          "value",
-          json.string(case value {
-            True -> "1"
-            False -> "0"
-          }),
-        ),
-      ])
-    Text(value) ->
-      json.object([
-        #("type", json.string("text")),
-        #("value", json.string(value)),
-      ])
-    Datetime(value) ->
-      json.object([
-        #("type", json.string("text")),
-        #("value", json.string(value)),
-      ])
-    Blob(value) ->
-      json.object([
-        #("type", json.string("blob")),
-        #("base64", json.string(value)),
-      ])
-    Null -> json.object([#("type", json.string("null"))])
-  }
 }
 
 // Response side
@@ -373,6 +322,48 @@ pub type Value {
   Blob(value: String)
   /// Nulls are null values.
   Null
+}
+
+fn encode_value(value: Value) -> json.Json {
+  case value {
+    Integer(value:) ->
+      json.object([
+        #("type", json.string("integer")),
+        #("value", json.string(int.to_string(value))),
+      ])
+    Real(value:) ->
+      json.object([
+        #("type", json.string("float")),
+        #("value", json.string(float.to_string(value))),
+      ])
+    Boolean(value:) ->
+      json.object([
+        #("type", json.string("integer")),
+        #(
+          "value",
+          json.string(case value {
+            True -> "1"
+            False -> "0"
+          }),
+        ),
+      ])
+    Text(value:) ->
+      json.object([
+        #("type", json.string("text")),
+        #("value", json.string(value)),
+      ])
+    Datetime(value:) ->
+      json.object([
+        #("type", json.string("string")),
+        #("value", json.string(value)),
+      ])
+    Blob(value:) ->
+      json.object([
+        #("type", json.string("blob")),
+        #("value", json.string(value)),
+      ])
+    Null -> json.object([#("type", json.string("null"))])
+  }
 }
 
 /// Columns are the columns returned from a query, specifying the name and type.
