@@ -25,7 +25,9 @@ pub fn main() {
 
   let statement =
     glibsql.new_statement()
-    |> glibsql.with_query("SELECT id, email, created_at, updated_at FROM users WHERE id < 5")
+    |> glibsql.with_query(
+      "SELECT id, email, created_at, updated_at FROM users WHERE id < 5",
+    )
 
   let request =
     glibsql.new_request()

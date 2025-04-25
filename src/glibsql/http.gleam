@@ -2,9 +2,9 @@
 //// [Hrana over HTTP](https://docs.turso.tech/sdk/http/reference) variant of libSQL,
 //// simply pass the constructed HTTP request into your http client of choice.
 
-import decode
 import gleam/bit_array
 import gleam/dynamic
+import gleam/dynamic/decode
 import gleam/float
 import gleam/http
 import gleam/http/request as http_request
@@ -371,6 +371,12 @@ pub type Column {
   Column(name: String, type_: String)
 }
 
+fn column_decoder() -> decode.Decoder(Column) {
+  use name <- decode.field("name", decode.string)
+  use type_ <- decode.field("decltype", decode.string)
+  decode.success(Column(name:, type_:))
+}
+
 /// Rows are the rows returned from a query, containing the values as a list.
 pub type Row {
   Row(values: List(Value))
@@ -392,97 +398,66 @@ type IRowColumn {
   IRowColumn(type_: String, value: Option(String), base64: Option(String))
 }
 
+fn i_row_column_decoder() -> decode.Decoder(IRowColumn) {
+  use type_ <- decode.field("type", decode.string)
+  use value <- decode.optional_field(
+    "value",
+    None,
+    decode.optional(
+      decode.one_of(decode.string, or: [
+        decode.float |> decode.map(float.to_string),
+      ]),
+    ),
+  )
+  // use base64 <- decode.field("base64", decode.optional(decode.string))
+  decode.success(IRowColumn(type_:, value:, base64: None))
+}
+
 type IInnerResult {
   IInnerResult(rows: List(List(IRowColumn)), columns: List(Column))
+}
+
+fn i_inner_result_decoder() -> decode.Decoder(IInnerResult) {
+  use rows <- decode.field(
+    "rows",
+    decode.list(decode.list(i_row_column_decoder())),
+  )
+  use columns <- decode.field("cols", decode.list(column_decoder()))
+  decode.success(IInnerResult(rows:, columns:))
 }
 
 type IResponse {
   IResponse(type_: String, inner_result: Option(IInnerResult))
 }
 
+fn i_response_decoder() -> decode.Decoder(IResponse) {
+  use type_ <- decode.field("type", decode.string)
+  use inner_result <- decode.optional_field(
+    "result",
+    None,
+    decode.optional(i_inner_result_decoder()),
+  )
+  decode.success(IResponse(type_:, inner_result:))
+}
+
 type IResult {
   IResult(type_: String, response: IResponse)
+}
+
+fn i_result_decoder() -> decode.Decoder(IResult) {
+  use type_ <- decode.field("type", decode.string)
+  use response <- decode.field("response", i_response_decoder())
+  decode.success(IResult(type_:, response:))
 }
 
 type GlibsqlHttpResponse {
   GlibsqlHttpResponse(baton: Option(String), results: List(IResult))
 }
 
-fn build_decoder() {
-  let row_column_decoder =
-    decode.into({
-      use type_ <- decode.parameter
-      use value <- decode.parameter
-      use base64 <- decode.parameter
-
-      IRowColumn(type_, value, base64)
-    })
-    |> decode.field("type", decode.string)
-    |> decode.field(
-      "value",
-      decode.one_of([
-        decode.optional(decode.string),
-        decode.optional(
-          decode.float
-          |> decode.map(float.to_string),
-        ),
-      ]),
-    )
-    |> decode.field("base64", decode.optional(decode.string))
-
-  let row_decoder = decode.list(of: row_column_decoder)
-
-  let column_decoder =
-    decode.into({
-      use name <- decode.parameter
-      use type_ <- decode.parameter
-
-      Column(name, type_)
-    })
-    |> decode.field("name", decode.string)
-    |> decode.field("decltype", decode.string)
-
-  let inner_result_decoder =
-    decode.into({
-      use rows <- decode.parameter
-      use columns <- decode.parameter
-
-      IInnerResult(rows, columns)
-    })
-    |> decode.field("rows", decode.list(of: row_decoder))
-    |> decode.field("cols", decode.list(of: column_decoder))
-
-  let response_decoder =
-    decode.into({
-      use type_ <- decode.parameter
-      use inner_result <- decode.parameter
-
-      IResponse(type_, inner_result)
-    })
-    |> decode.field("type", decode.string)
-    |> decode.field("result", decode.optional(inner_result_decoder))
-
-  let result_decoder =
-    decode.into({
-      use type_ <- decode.parameter
-      use response <- decode.parameter
-
-      IResult(type_, response)
-    })
-    |> decode.field("type", decode.string)
-    |> decode.field("response", response_decoder)
-
-  let glibsql_http_response_decoder =
-    decode.into({
-      use baton <- decode.parameter
-      use results <- decode.parameter
-
-      GlibsqlHttpResponse(baton, results)
-    })
-    |> decode.field("baton", decode.optional(decode.string))
-    |> decode.field("results", decode.list(of: result_decoder))
-
-  glibsql_http_response_decoder
+fn glibsql_http_response_decoder() -> decode.Decoder(GlibsqlHttpResponse) {
+  use baton <- decode.field("baton", decode.optional(decode.string))
+  use results <- decode.field("results", decode.list(i_result_decoder()))
+  decode.success(GlibsqlHttpResponse(baton:, results:))
 }
 
 // Turn the response into a Gleam data structure.
@@ -511,8 +486,7 @@ fn decode_string(json: String) -> Result(dynamic.Dynamic, Nil)
 pub fn decode_response(response: String) -> Result(HttpResponse, Nil) {
   use object <- result.try(json_parse(response))
 
-  build_decoder()
-  |> decode.from(object)
+  decode.run(object, glibsql_http_response_decoder())
   |> result.map(fn(resp) {
     let responses =
       list.map(resp.results, fn(res) {
@@ -583,5 +557,5 @@ pub fn decode_response(response: String) -> Result(HttpResponse, Nil) {
 
     HttpResponse(results: responses, baton: resp.baton)
   })
-  |> result.nil_error
+  |> result.map_error(fn(_) { Nil })
 }
