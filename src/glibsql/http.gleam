@@ -463,10 +463,10 @@ fn glibsql_http_response_decoder() -> decode.Decoder(GlibsqlHttpResponse) {
 
 @target(erlang)
 fn json_parse(json: String) {
-  let ba = bit_array.from_string(json)
-  use dynamic_value <- result.try(decode_bits(ba))
-
-  Ok(dynamic_value)
+  case json.parse(from: json, using: decode.dynamic) {
+    Ok(dynamic_value) -> Ok(dynamic_value)
+    Error(_err) -> Error(Nil)
+  }
 }
 
 
