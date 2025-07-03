@@ -2,7 +2,6 @@
 //// [Hrana over HTTP](https://docs.turso.tech/sdk/http/reference) variant of libSQL,
 //// simply pass the constructed HTTP request into your http client of choice.
 
-import gleam/bit_array
 import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/float
@@ -464,14 +463,13 @@ fn glibsql_http_response_decoder() -> decode.Decoder(GlibsqlHttpResponse) {
 
 @target(erlang)
 fn json_parse(json: String) {
-  let ba = bit_array.from_string(json)
-  use dynamic_value <- result.try(decode_bits(ba))
-
-  Ok(dynamic_value)
+  case json.parse(from: json, using: decode.dynamic) {
+    Ok(dynamic_value) -> Ok(dynamic_value)
+    Error(_err) -> Error(Nil)
+  }
 }
 
-@external(erlang, "glibsql_http_ffi", "decode")
-fn decode_bits(json: BitArray) -> Result(dynamic.Dynamic, Nil)
+
 
 @target(javascript)
 fn json_parse(json: String) {
